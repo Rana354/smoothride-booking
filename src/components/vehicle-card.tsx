@@ -72,7 +72,7 @@ export function VehicleCard({ vehicle }: { vehicle: VehicleProps }) {
         
         <div className="mt-auto pt-4 flex items-end justify-between">
           <div>
-            <span className="text-2xl font-semibold">${price}</span>
+            <span className="text-2xl font-semibold">₹{price}</span>
             <span className="text-muted-foreground text-sm">/day</span>
           </div>
           <Link to={available ? `/vehicles/${id}` : "#"}>

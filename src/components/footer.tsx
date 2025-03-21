@@ -99,13 +99,13 @@ export function Footer() {
               <li className="flex items-start gap-3">
                 <MapPin className="h-5 w-5 text-primary mt-0.5" />
                 <span className="text-muted-foreground">
-                  1234 Rental Street, San Francisco, CA 94111
+                  Bhubaneshwar, Odisha, India 751002
                 </span>
               </li>
               <li className="flex items-center gap-3">
                 <Phone className="h-5 w-5 text-primary" />
                 <a href="tel:+15551234567" className="text-muted-foreground hover:text-primary transition-colors">
-                  +1 (555) 123-4567
+                  +91 9114128523
                 </a>
               </li>
               <li className="flex items-center gap-3">

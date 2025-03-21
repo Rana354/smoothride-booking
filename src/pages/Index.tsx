@@ -6,22 +6,60 @@ import { MainNav } from "@/components/main-nav";
 import { VehicleSearch } from "@/components/vehicle-search";
 import { VehicleCard } from "@/components/vehicle-card";
 import { Footer } from "@/components/footer";
-import { vehicles } from "@/data/vehicles";
+
 import { ChevronRight, CreditCard, MapPin, Key, Clock, Shield, Car, LocateIcon, CalendarCheck, DollarSign } from "lucide-react";
+import { authService } from "@/services/auth";
+import { vehicleService } from "@/services/vehicle";
+import type { VehicleData } from "@/services/vehicle";
 
 export default function Index() {
   const [isLoaded, setIsLoaded] = useState(false);
+  const [userName, setUserName] = useState<string | null>(null);
 
   useEffect(() => {
+    const checkAuth = async () => {
+      const isAuth = await authService.isAuthenticated();
+      if (isAuth) {
+        const user = await authService.getCurrentUser();
+        setUserName(user?.name || null);
+      }
+    };
+    checkAuth();
     setIsLoaded(true);
   }, []);
 
-  const featuredVehicles = vehicles.filter(vehicle => vehicle.available).slice(0, 4);
+  useEffect(() => {
+    const loadFeaturedVehicles = async () => {
+      try {
+        const data = await vehicleService.getVehicles();
+        setFeaturedVehicles(data.filter(v => v.available).slice(0, 4));
+        setVehiclesError(null);
+      } catch (err) {
+        setVehiclesError('Failed to load featured vehicles');
+        setFeaturedVehicles([]);
+      } finally {
+        setLoadingVehicles(false);
+      }
+    };
+    loadFeaturedVehicles();
+  }, []);
+
+  const [featuredVehicles, setFeaturedVehicles] = useState<VehicleData[]>([]);
+const [loadingVehicles, setLoadingVehicles] = useState(true);
+const [vehiclesError, setVehiclesError] = useState<string | null>(null);
 
   return (
     <div className="min-h-screen flex flex-col">
       <MainNav />
       
+      {/* Add user greeting */}
+      {userName && ( 
+        <div className="absolute top-24 left-8 z-20 flex items-center gap-2 text-lg">
+          <span className="text-muted-foreground">Hi,</span>
+          <span className="font-medium text-primary ">{userName}</span>
+        </div>
+      )}
+
       {/* Hero Section */}
       <section className="relative min-h-screen flex items-center">
         <div className="absolute inset-0 z-0">
@@ -112,7 +150,15 @@ export default function Index() {
           </div>
           
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            {featuredVehicles.map((vehicle, index) => (
+            {loadingVehicles ? (
+          <div className="col-span-4 text-center py-12 text-muted-foreground animate-pulse">
+            Loading vehicles...
+          </div>
+        ) : vehiclesError ? (
+          <div className="col-span-4 text-center py-12 text-destructive">
+            {vehiclesError}
+          </div>
+        ) : featuredVehicles.map((vehicle, index) => (
               <div 
                 key={vehicle.id} 
                 className={`transition-all duration-700 animate-fade-in animate-delay-${index * 100}`}

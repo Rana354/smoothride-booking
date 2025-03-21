@@ -1,6 +1,8 @@
 
 import { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
+import { authService } from "@/services/auth";
+import { toast } from "@/components/ui/use-toast";
 import { MainNav } from "@/components/main-nav";
 import { Footer } from "@/components/footer";
 import { Button } from "@/components/ui/button";
@@ -9,6 +11,8 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 
 export default function SignUp() {
+  const navigate = useNavigate();
+  const [isLoading, setIsLoading] = useState(false);
   const [formData, setFormData] = useState({
     name: "",
     email: "",
@@ -21,10 +25,37 @@ export default function SignUp() {
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    console.log("SignUp attempt with:", formData);
-    // In a real application, this would call a registration API
+    if (formData.password !== formData.confirmPassword) {
+      toast({
+        title: "Error",
+        description: "Passwords do not match",
+        variant: "destructive"
+      });
+      return;
+    }
+    setIsLoading(true);
+    try {
+      await authService.register({
+        name: formData.name,
+        email: formData.email,
+        password: formData.password
+      });
+      toast({
+        title: "Success",
+        description: "Account created successfully"
+      });
+      navigate("/dashboard");
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to create account. Please try again.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -47,7 +78,7 @@ export default function SignUp() {
                   <Input 
                     id="name" 
                     name="name"
-                    placeholder="John Doe" 
+                    placeholder="Rabi Mohapatra" 
                     value={formData.name}
                     onChange={handleChange}
                     required
@@ -59,7 +90,7 @@ export default function SignUp() {
                     id="email" 
                     name="email"
                     type="email" 
-                    placeholder="your@email.com" 
+                    placeholder="example@email.com" 
                     value={formData.email}
                     onChange={handleChange}
                     required
@@ -87,8 +118,8 @@ export default function SignUp() {
                     required
                   />
                 </div>
-                <Button type="submit" className="w-full">
-                  Create account
+                <Button type="submit" className="w-full" disabled={isLoading}>
+                  {isLoading ? "Creating account..." : "Create account"}
                 </Button>
               </form>
             </CardContent>

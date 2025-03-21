@@ -1,11 +1,12 @@
 
 import { useState, useEffect } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useSearchParams, Link } from "react-router-dom";
 import { MainNav } from "@/components/main-nav";
 import { Footer } from "@/components/footer";
 import { VehicleCard } from "@/components/vehicle-card";
 import { VehicleSearch } from "@/components/vehicle-search";
-import { vehicles } from "@/data/vehicles";
+import { vehicleService } from "@/services/vehicle";
+import type { VehicleData } from "@/services/vehicle";
 import { Button } from "@/components/ui/button";
 import {
   Select,
@@ -28,47 +29,65 @@ import {
 
 export default function VehicleListings() {
   const [searchParams] = useSearchParams();
-  const [filteredVehicles, setFilteredVehicles] = useState(vehicles);
+  const [vehicles, setVehicles] = useState<VehicleData[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [filteredVehicles, setFilteredVehicles] = useState<VehicleData[]>([]);
   const [view, setView] = useState<"grid" | "list">("grid");
   const [showFilters, setShowFilters] = useState(false);
-  const [priceRange, setPriceRange] = useState([0, 200]);
+  const [priceRange, setPriceRange] = useState([0, 15000]);
   const [vehicleTypes, setVehicleTypes] = useState<string[]>([]);
   const [showAvailableOnly, setShowAvailableOnly] = useState(true);
   const [sortBy, setSortBy] = useState<string>("recommended");
   
   useEffect(() => {
-    // Get query parameters
-    const locationParam = searchParams.get('location');
+    const fetchVehicles = async () => {
+      try {
+        setLoading(true);
+        const data = await vehicleService.getVehicles();
+        setVehicles(data);
+        setError(null);
+        const maxPrice = data.length > 0 ? Math.max(...data.map(v => v.price)) : 15000;
+        setPriceRange([0, maxPrice]);
+      } catch (err) {
+        setError('Failed to fetch vehicles. Please try again later.');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchVehicles();
+  }, []);
+  // Separate useEffect for URL parameter processing
+  useEffect(() => {
     const typeParam = searchParams.get('type');
-    const pickupParam = searchParams.get('pickup');
-    const returnParam = searchParams.get('return');
-    
-    // Initialize array of types if from URL parameter
-    if (typeParam && !vehicleTypes.includes(typeParam.toLowerCase())) {
-      setVehicleTypes([...vehicleTypes, typeParam.toLowerCase()]);
+    if (typeParam) {
+      const normalizedType = typeParam.toLowerCase();
+      setVehicleTypes(prev => 
+        prev.includes(normalizedType) ? prev : [...prev, normalizedType]
+      );
     }
-    
-    // Filter vehicles based on search criteria
+  }, [searchParams]);
+
+  // Main filter effect
+  useEffect(() => {
+    // Apply filters
     let filtered = vehicles;
-    
-    // Filter by availability
+  
     if (showAvailableOnly) {
       filtered = filtered.filter(vehicle => vehicle.available);
     }
-    
-    // Filter by vehicle type
+  
     if (vehicleTypes.length > 0) {
       filtered = filtered.filter(vehicle => 
-        vehicleTypes.includes(vehicle.type.toLowerCase())
+        vehicleTypes.some(t => vehicle.type.toLowerCase() === t)
       );
     }
-    
-    // Filter by price range
+  
     filtered = filtered.filter(vehicle => 
       vehicle.price >= priceRange[0] && vehicle.price <= priceRange[1]
     );
-    
-    // Apply sorting
+  
     switch (sortBy) {
       case "price-low":
         filtered.sort((a, b) => a.price - b.price);
@@ -79,23 +98,24 @@ export default function VehicleListings() {
       case "rating":
         filtered.sort((a, b) => b.rating - a.rating);
         break;
-      // Default is "recommended" - no specific sorting
     }
-    
+  
     setFilteredVehicles(filtered);
-  }, [searchParams, vehicleTypes, priceRange, showAvailableOnly, sortBy]);
+  }, [vehicleTypes, priceRange, showAvailableOnly, sortBy, vehicles]);
   
   const toggleVehicleType = (type: string) => {
-    if (vehicleTypes.includes(type)) {
-      setVehicleTypes(vehicleTypes.filter(t => t !== type));
-    } else {
-      setVehicleTypes([...vehicleTypes, type]);
-    }
+    setVehicleTypes(prev => {
+      const normalizedType = type.toLowerCase();
+      return prev.includes(normalizedType)
+        ? prev.filter(t => t !== normalizedType)
+        : [...prev, normalizedType];
+    });
   };
+  
   
   const clearFilters = () => {
     setVehicleTypes([]);
-    setPriceRange([0, 200]);
+    setPriceRange([0, 1500]);
     setShowAvailableOnly(true);
     setSortBy("recommended");
   };
@@ -159,15 +179,15 @@ export default function VehicleListings() {
                     <Slider
                       defaultValue={priceRange}
                       min={0}
-                      max={200}
+                      max={15000}
                       step={5}
                       value={priceRange}
                       onValueChange={setPriceRange}
                       className="mb-4"
                     />
                     <div className="flex justify-between text-muted-foreground text-sm">
-                      <span>${priceRange[0]}/day</span>
-                      <span>${priceRange[1]}/day</span>
+                      <span>₹{priceRange[0]}/day</span>
+                      <span>₹{priceRange[1]}/day</span>
                     </div>
                   </div>
                   
@@ -179,8 +199,8 @@ export default function VehicleListings() {
                         <div key={type} className="flex items-center">
                           <Checkbox 
                             id={`type-${type}`} 
-                            checked={vehicleTypes.includes(type)}
-                            onCheckedChange={() => toggleVehicleType(type)}
+                            checked={vehicleTypes.includes(type.toLowerCase())}
+                            onCheckedChange={() => toggleVehicleType(type.toLowerCase())}
                           />
                           <label 
                             htmlFor={`type-${type}`}
@@ -376,16 +396,11 @@ export default function VehicleListings() {
                           
                           <div className="mt-auto pt-4 flex items-end justify-between">
                             <div>
-                              <span className="text-2xl font-semibold">${vehicle.price}</span>
-                              <span className="text-muted-foreground text-sm">/day</span>
+                              <span className="text-2xl font-semibold">₹{vehicle.price}/day</span>
                             </div>
-                            <Button 
-                              disabled={!vehicle.available}
-                              onClick={() => window.location.href = `/vehicles/${vehicle.id}`}
-                              className="btn-hover"
-                            >
-                              {vehicle.available ? "View Details" : "Unavailable"}
-                            </Button>
+                            <Link to={`/vehicles/${vehicle.id}`}>
+                              <Button className="btn-hover">View Details</Button>
+                            </Link>
                           </div>
                         </div>
                       </div>

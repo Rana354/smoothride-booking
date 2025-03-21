@@ -4,11 +4,36 @@ import { Link, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Menu, X, Car } from "lucide-react";
+import { authService } from '@/services/auth';
 
 export function MainNav() {
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
   const location = useLocation();
+
+  useEffect(() => {
+    const checkAuth = async () => {
+      const isAuth = await authService.isAuthenticated();
+    setIsAuthenticated(isAuth);
+    };
+    checkAuth();
+  }, [location]);
+
+  const checkAuth = async () => {
+    const isAuth = await authService.isAuthenticated();
+    setIsAuthenticated(isAuth);
+  };
+
+  useEffect(() => {
+    checkAuth();
+  }, []);
+
+  const handleLogout = async () => {
+    await authService.logout();
+    await checkAuth();
+    setIsMobileMenuOpen(false);
+  };
 
   const navItems = [
     { name: "Home", path: "/" },
@@ -16,6 +41,10 @@ export function MainNav() {
     { name: "How It Works", path: "/#how-it-works" },
     { name: "About", path: "/#about" },
     { name: "Contact", path: "/#contact" },
+    ...(isAuthenticated ? [
+      { name: "Dashboard", path: "/dashboard" },
+      { name: "Settings", path: "/settings" }
+    ] : []),
   ];
 
   useEffect(() => {
@@ -66,16 +95,27 @@ export function MainNav() {
             <ThemeToggle />
             
             <div className="hidden md:flex items-center gap-2">
-              <Link to="/login">
-                <Button variant="ghost" size="sm" className="btn-hover">
-                  Log in
-                </Button>
-              </Link>
-              <Link to="/signup">
-                <Button size="sm" className="btn-hover">
-                  Sign up
-                </Button>
-              </Link>
+              {!isAuthenticated ? (
+                <>
+                  <Link to="/login">
+                    <Button variant="ghost" size="sm" className="btn-hover">
+                      Log in
+                    </Button>
+                  </Link>
+                  <Link to="/signup">
+                    <Button size="sm" className="btn-hover">
+                      Sign up
+                    </Button>
+                  </Link>
+                </>
+              ) : (
+                <>
+  
+                  <Button variant="ghost" size="sm" onClick={handleLogout} className="btn-hover">
+                    Log out
+                  </Button>
+                </>
+              )}
             </div>
 
             {/* Mobile menu button */}
@@ -100,6 +140,7 @@ export function MainNav() {
       {isMobileMenuOpen && (
         <div className="md:hidden fixed inset-0 top-16 z-50 bg-background animate-fade-in">
           <nav className="flex flex-col p-6 space-y-4">
+
             {navItems.map((item) => (
               <Link
                 key={item.name}
@@ -112,16 +153,24 @@ export function MainNav() {
               </Link>
             ))}
             <div className="flex flex-col gap-2 pt-4">
-              <Link to="/login">
-                <Button variant="outline" className="w-full justify-center">
-                  Log in
+              {!isAuthenticated ? (
+                <>
+                  <Link to="/login">
+                    <Button variant="outline" className="w-full justify-center">
+                      Log in
+                    </Button>
+                  </Link>
+                  <Link to="/signup">
+                    <Button className="w-full justify-center">
+                      Sign up
+                    </Button>
+                  </Link>
+                </>
+              ) : (
+                <Button variant="outline" className="w-full justify-center" onClick={handleLogout}>
+                  Log out
                 </Button>
-              </Link>
-              <Link to="/signup">
-                <Button className="w-full justify-center">
-                  Sign up
-                </Button>
-              </Link>
+              )}
             </div>
           </nav>
         </div>
